@@ -8,6 +8,20 @@ use e;
 class Bundle {
 	
 	private static $actions = array();
+
+	public function _on_after_framework_loaded() {
+
+		e::configure('action')->activeAdd('class_formats', '\\Action\\%');
+
+		$portal_dirs = array();
+		foreach(array_reverse(e::configure('portal')->activeGet('locations')) as $portal) {
+			foreach(glob($portal.'/portals/*') as $portal)
+				$portal_dirs[] = $portal;
+		}
+
+		foreach ($portal_dirs as $portal)
+			e::configure('action')->activeAdd('locations', $portal);
+	}
 	
 	public function _on_portal_route($path, $dir) {
 		$this->route($path, array($dir));
@@ -20,103 +34,52 @@ class Bundle {
 	public function __callBundle($action) {
 		if($action) {
 			$action = str_replace('.','\\', $action);
-			$r = $this->load(array(\Bundles\Portal\Bundle::$currentPortalName, $action), true);
+			$r = $this->load(\Bundles\Portal\Bundle::$currentPortalName, $action);
 			return $r;
 		}
 		
 		return $this;
 	}
 	
-	public function load($action, $data) {
-		if(is_array($action)) {
-			$dirs = array(EvolutionSite.'/portals/'.array_shift($action));
-			$name = str_replace('\\', '/', strtolower(array_shift($action)));
-		}
-		else $name = str_replace('\\', '/', strtolower($action));
-		
-		// Add defaults
-		e::configure('action')->activeAdd('class_format', '\\Action\\%');
-		e::configure('action')->activeAdd('locations', EvolutionSite);
-		
-		// If dirs are not specified, use defaults
-		if(!isset($dirs))
-			$dirs = e::configure('action')->locations;
-		
-		// Check all dirs for a matching action
-		foreach($dirs as $dir) {
-			// Look in action folder
-			if(basename($dir) !== 'actions')
-				$dir .= '/actions';
-			
-			// Skip if missing
-			if(!is_dir($dir))
-				continue;
-				
-			// File to check
-			$file = "$dir/$name.php";
-			
-			// Skip if incorrect file
-			if(!is_file($file))
-				continue;
-			
-			// Require the controller
-			require_once($file);
-				
-			// action class
-			$classFormats = e::configure('action')->class_format;
-			
-			// Check each class format
-			$found = false;
-			foreach($classFormats as $format) {
-				
-				// Format class with action name
-				$class = str_replace(array('%', '/'), array($name, '\\'), $format);
-				
-				// Check if this is a valid class
-				if(class_exists($class, false)) {
-					$found = true;
-					break;
-				}
-			}
-			
-			// Maybe we just ran out of formats to check
-			if(!$found) {
-				$classes = implode('`, `', $classFormats);
-				$classes = str_replace('%', $name, $classes);
-				throw new Exception("None of the possible action classes: `$classes` are defined in `$file`");
-			}
-			
-			// Load action
-			return new $class($data, true);
-			
+	public function load($portal = false, $action) {
+		if(!empty($portal)) {
+
+			/**
+			 * Handle Portal Locations
+			 */
+			$dirs = array();
+			foreach(e::configure('portal')->activeGet('locations') as $portalLoc)
+				$dirs[] = $portalLoc.'/portals/'.$portal;
 		}
 		
+		$name = str_replace('\\', '/', strtolower($action));
+		$name = explode('/', $name);
+
+		$this->test = true;
+
+		return $this->route($name, isset($dirs) ? $dirs : null, true);
 	}
 	
-	public static function route($path, $dirs = null) {
-		
-		// Add defaults
-		e::configure('action')->activeAdd('class_format', '\\Action\\%');
-		e::configure('action')->activeAdd('locations', EvolutionSite);
-		
+	public function route($path, $dirs = null, $load = false) {
 		// If dirs are not specified, use defaults
 		if(is_null($dirs))
 			$dirs = e::configure('action')->locations;
 			
 		// Make sure path contains valid action name
-		if(!isset($path[0]) || $path[0] !== 'do')
+		if((empty($path) || !is_array($path) || $path[0] !== 'do') && !$load)
 			return;
-			
+
 		/**
 		 * Take off the /do
 		 */
-		array_shift($path);
+		if(!$load) array_shift($path);
 		
 		// Get the action name
 		$name = strtolower(implode('/',$path));
 		
 		// Check all dirs for a matching action
 		foreach($dirs as $dir) {
+
 			// Look in action folder
 			if(basename($dir) !== 'actions')
 				$dir .= '/actions';
@@ -128,7 +91,7 @@ class Bundle {
 			// File to check
 			$file = "$dir/$name.php";
 			
-			// Skip if incorrect file
+			// Skip if missing file
 			if(!is_file($file))
 				continue;
 			
@@ -139,7 +102,7 @@ class Bundle {
 				require_once($file);
 				
 				// action class
-				$classFormats = e::configure('action')->class_format;
+				$classFormats = e::configure('action')->class_formats;
 				
 				// Check each class format
 				$found = false;
@@ -158,13 +121,19 @@ class Bundle {
 				// Maybe we just ran out of formats to check
 				if(!$found) {
 					$classes = implode('`, `', $classFormats);
-					$classes = str_replace('%', $name, $classes);
+					$classes = str_replace(array('%', '/'), array($name, '\\'), $classes);
 					throw new Exception("None of the possible action classes: `$classes` are defined in `$file`");
 				}
 				
 				// Load action
-				self::$actions[$file] = new $class;
+				if(!$load) self::$actions[$file] = new $class;
+				else self::$actions[$file] = new $class(array(), true);
 			}
+
+			/**
+			 * If called by load return the object
+			 */
+			if($load) return self::$actions[$file];
             
             // Complete the current binding queue
             e\Complete();
