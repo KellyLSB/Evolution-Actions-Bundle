@@ -26,11 +26,11 @@ abstract class Action {
 		$this->class = get_class($this);
 		
 		$session = e::$session->data('get', 'Action');
-		$this->_injectData($data, $session[$this->class], e::$input->all);
+		$this->_injectData($data, $session[$this->class], e::$resource->all);
 		
 		if(isset($this->data['_reset'])) {
 			$this->data = array();
-			$this->_injectData(e::$input->all);
+			$this->_injectData(e::$resource->all);
 			unset($this->data['_reset']);
 		}
 		
