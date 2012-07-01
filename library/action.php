@@ -29,6 +29,7 @@ abstract class Action {
 		$this->_injectData($data, $session[$this->class], e::$resource->all);
 		
 		if(isset($this->data['_reset'])) {
+			$this->_clearData();
 			$this->data = array();
 			$this->_injectData(e::$resource->all);
 			unset($this->data['_reset']);
