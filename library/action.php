@@ -48,7 +48,7 @@ abstract class Action {
 		
 		$this->init();
 		
-		foreach($this->data as $key=>$validate) {
+		foreach($this->data as $key => &$validate) {
 			if(!is_array($validate)) continue;
 			if(method_exists($this, $method = '_validate_'.$key)) {
 				if($this->$method($validate) === false)
