@@ -22,7 +22,7 @@ abstract class Action {
 	
 	private $messages = array();
 	
-	final public function __construct($data = array(), $juststop = false) {
+	final public function __construct($data = array(), $juststop = false, $init = false) {
 		$this->class = get_class($this);
 		
 		$session = e::$session->data('get', 'Action');
@@ -35,7 +35,15 @@ abstract class Action {
 			unset($this->data['_reset']);
 		}
 		
-		if($juststop) return;
+		/**
+		 * If using load then just stop
+		 */
+		if($juststop) {
+			
+			// If we still want to init then init
+			if($init) $this->init();
+			return;
+		}
 		
 		if(isset($this->data['_success_url']))
 			$this->_success_url = $this->data['_success_url'];

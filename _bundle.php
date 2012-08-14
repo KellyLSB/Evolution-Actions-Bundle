@@ -31,17 +31,17 @@ class Bundle {
 		$this->route($path, e::configure('action')->locations);
 	}
 	
-	public function __callBundle($action) {
+	public function __callBundle($action, $init = false) {
 		if($action) {
 			$action = str_replace('.','\\', $action);
-			$r = $this->load(\Bundles\Portal\Bundle::$currentPortalName, $action);
+			$r = $this->load(\Bundles\Portal\Bundle::$currentPortalName, $action, $init);
 			return $r;
 		}
 		
 		return $this;
 	}
 	
-	public function load($portal = false, $action) {
+	public function load($portal = false, $action, $init = false) {
 		if(!empty($portal)) {
 
 			/**
@@ -57,10 +57,10 @@ class Bundle {
 
 		$this->test = true;
 
-		return $this->route($name, isset($dirs) ? $dirs : null, true);
+		return $this->route($name, isset($dirs) ? $dirs : null, true, $init);
 	}
 	
-	public function route($path, $dirs = null, $load = false) {
+	public function route($path, $dirs = null, $load = false, $init = false) {
 		// If dirs are not specified, use defaults
 		if(is_null($dirs))
 			$dirs = e::configure('action')->locations;
@@ -127,7 +127,7 @@ class Bundle {
 				
 				// Load action
 				if(!$load) self::$actions[$file] = new $class;
-				else self::$actions[$file] = new $class(array(), true);
+				else self::$actions[$file] = new $class(array(), true, $init);
 			}
 
 			/**
